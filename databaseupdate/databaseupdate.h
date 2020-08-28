@@ -1,8 +1,9 @@
 #ifndef DATABASEUPDATE_H
 #define DATABASEUPDATE_H
 
+#include <QSqlDatabase>
 #include <QSqlQuery>
-#include <QVersionNumber>
+#include <QCryptographicHash>
 #include <QDebug>
 
 #include <coreengine.h>
@@ -13,17 +14,17 @@ class DatabaseUpdate : public Process
 public:
     DatabaseUpdate(CoreEngine *engine) : mEngine(engine) {}
 
-    static void update(void *data) {
+    static void update(void *data, void *) {
         CoreEngine *engine = static_cast<CoreEngine *>(data);
 
         DatabasePtr db = engine->database();
         db->exec("SELECT `value` FROM `info` WHERE `key`='db.version'");
 
-        QVersionNumber version;
+        QString version;
         if (db->next())
-            version = QVersionNumber::fromString(db->value(0).toString());
+            version = db->value(0).toString();
 
-        if (version.isNull()) {
+        if (version.isEmpty()) {
             db->exec("CREATE TABLE `info` ( `key` varchar(24) PRIMARY KEY NOT NULL, `value` text NOT NULL )");
             db->exec("CREATE TABLE `settings` ( `key` varchar(128) PRIMARY KEY NOT NULL, `value` text NOT NULL )");
             db->exec("CREATE TABLE `pegawai` ( `kantor` varchar(3) NOT NULL, `nip` varchar(9) NOT NULL, `nip2` text NULL, `nama` text NOT NULL, `pangkat` integer NOT NULL, `seksi` integer NULL, `jabatan` integer NOT NULL, `tahun` integer NOT NULL, `plh` varchar(9) NULL )");
@@ -87,8 +88,35 @@ public:
                 db->exec("CREATE TABLE `nothitstp` ( `id` integer PRIMARY KEY AUTOINCREMENT NOT NULL, `npwp` varchar(9) NOT NULL, `kpp` varchar(3) NOT NULL, `cabang` varchar(3) NOT NULL, `jenis` text NOT NULL, `masa` integer NOT NULL, `masa2` integer NOT NULL, `tahun` integer NOT NULL, `denda` double NULL, `bunga` double NULL, `bungapembetulan` double NULL, `tanggalterbit` date NOT NULL, `nip` text NOT NULL )");
             }
 
+            db->exec("INSERT INTO `users`(`username`, `password`, `fullname`, `group`) VALUES('admin', 'admin', 'Administrator', 0)");
             db->exec("INSERT INTO `info` VALUES('db.version', '4.4')");
+            version = "4.4";
         }
+
+        /*
+        if (version == "4.4") {
+            QHash<QString, QString> authHash;
+            db->exec("SELECT `username`, `password` FROM `users`");
+            while (db->next()) {
+                QString username = db->value(0).toString();
+                QString password = db->value(1).toString();
+
+                authHash[username] = QCryptographicHash::hash(QString(username + ":" + password).toUtf8(), QCryptographicHash::Sha1).toHex();
+            }
+
+            QHashIterator<QString, QString> iterator(authHash);
+            while (iterator.hasNext()) {
+                iterator.next();
+                db->exec("UPDATE `users` SET `password`=? WHERE `username`=?");
+                db->addBindValue(iterator.value());
+                db->addBindValue(iterator.key());
+                db->exec();
+            }
+
+            db->exec("UPDATE `info` SET `value`='5.0' WHERE `key`='db.version'");
+            version = "5.0";
+        }
+        */
     }
 
     void run() {

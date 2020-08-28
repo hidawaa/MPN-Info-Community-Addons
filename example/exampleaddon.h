@@ -45,9 +45,9 @@ public:
     AddOnTypes type() { return AddOnPage; }
     int loadFlags() { return AddOnCreateMenu; }
     int permission() { return 0; }
-    ObjectPtr newObject() { return nullptr; }
+    ObjectPtr newObject() { return ObjectPtr(); }
     PagePtr newPage() { return PagePtr(new ExamplePage); }
-    ProcessPtr newProcess() { return nullptr; }
+    ProcessPtr newProcess() { return ProcessPtr(); }
 };
 
 // Example Kedua
@@ -68,8 +68,8 @@ public:
     AddOnTypes type() { return AddOnProcess; }
     int loadFlags() { return AddOnCreateMenu | AddOnExecAfterLogin; }
     int permission() { return 0; }
-    ObjectPtr newObject() { return nullptr; }
-    PagePtr newPage() { return nullptr; }
+    ObjectPtr newObject() { return ObjectPtr(); }
+    PagePtr newPage() { return PagePtr(); }
     ProcessPtr newProcess() { return ProcessPtr(new ExampleProcess); }
 };
 
@@ -119,8 +119,8 @@ public:
 private slots:
     void onButton1Clicked() {
         AddOnPtr addOnPtr = mEngine->addOn("example_page");
-        PagePtr page = addOnPtr->newPage();
-        mEngine->window()->addPage(page, addOnPtr->title());
+        PagePtr pagePtr = addOnPtr->newPage();
+        mEngine->window()->addPage(pagePtr, addOnPtr->title());
     }
 
     void onButton2Clicked() {
@@ -200,9 +200,9 @@ public:
     AddOnTypes type() { return AddOnPage; }
     int loadFlags() { return AddOnCreateMenu; }
     int permission() { return 0; }
-    ObjectPtr newObject() { return nullptr; }
+    ObjectPtr newObject() { return ObjectPtr(); }
     PagePtr newPage() { return PagePtr(new ExampleLoadPage(engine)); }
-    ProcessPtr newProcess() { return nullptr; }
+    ProcessPtr newProcess() { return ProcessPtr(); }
 };
 
 #endif // EXAMPLEADDON_H

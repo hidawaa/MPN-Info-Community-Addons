@@ -53,8 +53,8 @@ class LoadingAddOn : public AddOn
     int loadFlags() { return 0; }
     int permission() { return 0; }
     ObjectPtr newObject() { return ObjectPtr(new LoadingDialogObject); }
-    PagePtr newPage() { return nullptr; }
-    ProcessPtr newProcess() { return nullptr; }
+    PagePtr newPage() { return PagePtr(); }
+    ProcessPtr newProcess() { return ProcessPtr(); }
 };
 
 #endif // LOADINGDIALOGADDON_H

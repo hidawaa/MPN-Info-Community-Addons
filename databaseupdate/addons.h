@@ -15,8 +15,8 @@ public:
     AddOnTypes type() { return AddOnProcess; }
     int loadFlags() { return AddOnCreateMenu | AddOnExecBeforeLogin; }
     int permission() { return 0; }
-    ObjectPtr newObject() { return nullptr; }
-    PagePtr newPage() { return nullptr; }
+    ObjectPtr newObject() { return ObjectPtr(); }
+    PagePtr newPage() { return PagePtr(); }
     ProcessPtr newProcess() { return ProcessPtr(new DatabaseUpdate(engine)); }
 };
 
