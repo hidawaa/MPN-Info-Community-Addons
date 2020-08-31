@@ -13,7 +13,7 @@ public:
     QString group() { return "Database"; }
     QString title() { return "Database Update"; }
     AddOnTypes type() { return AddOnProcess; }
-    int loadFlags() { return AddOnCreateMenu | AddOnExecBeforeLogin; }
+    int loadFlags() { return AddOnExecBeforeLogin; }
     int permission() { return 0; }
     ObjectPtr newObject() { return ObjectPtr(); }
     PagePtr newPage() { return PagePtr(); }

@@ -8,15 +8,14 @@
 
 #include <coreengine.h>
 #include <interface.h>
+#include <runnable.h>
 
-class DatabaseUpdate : public Process
+class CRunnable : public Runnable
 {
 public:
-    DatabaseUpdate(CoreEngine *engine) : mEngine(engine) {}
+    CRunnable(CoreEngine *_engine) : engine(_engine) {}
 
-    static void update(void *data, void *) {
-        CoreEngine *engine = static_cast<CoreEngine *>(data);
-
+    void run() {
         DatabasePtr db = engine->database();
         db->exec("SELECT `value` FROM `info` WHERE `key`='db.version'");
 
@@ -119,12 +118,20 @@ public:
         */
     }
 
+    CoreEngine *engine;
+};
+
+class DatabaseUpdate : public Process
+{
+public:
+    DatabaseUpdate(CoreEngine *engine) : mEngine(engine) {}
+
     void run() {
         ObjectPtr loadingDialog = mEngine->addOn("dialog_loading")->newObject();
         loadingDialog->exec("setMessage", "Updating Database");
         loadingDialog->exec("show");
 
-        mEngine->run(&DatabaseUpdate::update, mEngine);
+        mEngine->runSync(new CRunnable(mEngine));
     }
 
 private:
