@@ -45,9 +45,7 @@ public:
     AddOnTypes type() { return AddOnPage; }
     int loadFlags() { return AddOnCreateMenu; }
     int permission() { return 0; }
-    ObjectPtr newObject() { return ObjectPtr(); }
     PagePtr newPage() { return PagePtr(new ExamplePage); }
-    ProcessPtr newProcess() { return ProcessPtr(); }
 };
 
 // Example Kedua
@@ -68,8 +66,6 @@ public:
     AddOnTypes type() { return AddOnProcess; }
     int loadFlags() { return AddOnCreateMenu | AddOnExecAfterLogin; }
     int permission() { return 0; }
-    ObjectPtr newObject() { return ObjectPtr(); }
-    PagePtr newPage() { return PagePtr(); }
     ProcessPtr newProcess() { return ProcessPtr(new ExampleProcess); }
 };
 
@@ -200,9 +196,7 @@ public:
     AddOnTypes type() { return AddOnPage; }
     int loadFlags() { return AddOnCreateMenu; }
     int permission() { return 0; }
-    ObjectPtr newObject() { return ObjectPtr(); }
     PagePtr newPage() { return PagePtr(new ExampleLoadPage(engine)); }
-    ProcessPtr newProcess() { return ProcessPtr(); }
 };
 
 #endif // EXAMPLEADDON_H
