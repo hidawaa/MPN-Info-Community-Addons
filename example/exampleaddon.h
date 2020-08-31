@@ -28,8 +28,11 @@ public:
 
     ~ExamplePage() {}
 
-    void setArgs(const QVariant &args) {
-        label->setText(args.toString());
+    QStringList keys() { return QStringList() << "setText"; }
+    QVariant exec(const QString &key, const QVariant &arg) {
+        if (key == "setText")
+            label->setText(arg.toString());
+        return true;
     }
 
 private:
@@ -122,7 +125,7 @@ private slots:
     void onButton2Clicked() {
         AddOnPtr addOnPtr = mEngine->addOn("example_page");
         PagePtr page = addOnPtr->newPage();
-        page->setArgs("Ini adalah halaman contoh yang isinya dapat dirubah dengan setArgs");
+        page->exec("setText", "Ini adalah halaman contoh yang isinya dapat dirubah dengan setArgs");
 
         mEngine->window()->addPage(page, addOnPtr->title());
     }
