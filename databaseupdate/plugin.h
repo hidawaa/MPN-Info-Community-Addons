@@ -19,7 +19,13 @@ public:
     QString group() { return "Core"; }
     QString version() { return "0.0.1"; }
     QString description() { return "Database Update"; }
-    QList<AddOnPtr> addOns() { return QList<AddOnPtr>() << AddOnPtr(new DatabaseUpdateAddOn); }
+    QList<AddOnPtr> addOns() { return QList<AddOnPtr>()
+                << AddOnPtr(new DatabaseUpdateAddOn)
+                << AddOnPtr(new DatabaseUpdateKantorAddOn)
+                << AddOnPtr(new DatabaseUpdateMapAddOn)
+                << AddOnPtr(new DatabaseUpdateKluAddOn)
+                << AddOnPtr(new DatabaseUpdateJatuhTempoAddOn)
+                << AddOnPtr(new DatabaseUpdateMaxLaporAddOn); }
 };
 
 

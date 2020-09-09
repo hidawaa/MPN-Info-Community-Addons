@@ -5,7 +5,12 @@ QT             += sql widgets network
 INCLUDEPATH    += $$PWD/../../pdk/include
 HEADERS         = plugin.h \
     addons.h \
-    databaseupdate.h
+    databaseupdate.h \
+    databaseupdatejatuhtempo.h \
+    databaseupdatekantor.h \
+    databaseupdateklu.h \
+    databaseupdatemap.h \
+    databaseupdatemaxlapor.h
 SOURCES         =
 DESTDIR         = $$OUT_PWD/../../build/addons
 #! [0]

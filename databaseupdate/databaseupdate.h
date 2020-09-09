@@ -132,6 +132,21 @@ public:
         loadingDialog->exec("show");
 
         mEngine->runSync(new CRunnable(mEngine));
+
+        loadingDialog->exec("setMessage", "Updating Kantor");
+        mEngine->addOn("database_update_kantor")->newProcess()->run();
+
+        loadingDialog->exec("setMessage", "Updating Kode MAP");
+        mEngine->addOn("database_update_map")->newProcess()->run();
+
+        loadingDialog->exec("setMessage", "Updating KLU");
+        mEngine->addOn("database_update_klu")->newProcess()->run();
+
+        loadingDialog->exec("setMessage", "Updating Jatuh Tempo");
+        mEngine->addOn("database_update_jatuhtempo")->newProcess()->run();
+
+        loadingDialog->exec("setMessage", "Updating Max Lapor");
+        mEngine->addOn("database_update_maxlapor")->newProcess()->run();
     }
 
 private:
