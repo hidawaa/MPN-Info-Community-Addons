@@ -9,7 +9,7 @@
 #define ZCONF_H
 
 /* Since Qt Core must export these symbols, define Z_PREFIX to avoid clashes system zlib */
-#define Z_PREFIX
+/* #define Z_PREFIX */
 
 /*
  * If you *really* need a unique prefix for all types and library functions,
@@ -336,6 +336,7 @@
    /* If building or using zlib as a DLL, define ZLIB_DLL.
     * This is not mandatory, but it offers a little performance increase.
     */
+#  undef ZLIB_DLL
 #  ifdef ZLIB_DLL
 #    if defined(WIN32) && (!defined(__BORLANDC__) || (__BORLANDC__ >= 0x500))
 #      ifdef ZLIB_INTERNAL

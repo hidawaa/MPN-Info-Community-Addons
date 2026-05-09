@@ -1,6 +1,6 @@
 #! [0]
 TEMPLATE        = lib
-CONFIG         += plugin
+CONFIG         += plugin c++17
 INCLUDEPATH    += $$PWD/../../pdk/include
 HEADERS         = plugin.h \
     addon.h \

@@ -2,6 +2,7 @@
 #define SSHEETWORKBOOK_H
 
 #include <QFont>
+#include <QList>
 #include "ssheetstyle.h"
 
 class SSheetWorksheet;

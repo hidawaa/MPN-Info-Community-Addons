@@ -9,12 +9,15 @@
 *.dll
 *.dylib
 
+# Build output directories
+debug/
+release/
 
 # IDE Configurations
 
 ## Qt-es
-/.qmake.cache
-/.qmake.stash
+.qmake.cache
+.qmake.stash
 *.pro.user
 *.pro.user.*
 *.moc
