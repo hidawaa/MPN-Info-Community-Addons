@@ -30,18 +30,18 @@ else {
 }
 
 HEADERS += \
-        $$PWD/crypt.h \
+        $$PWD/minizip_crypt.h \
         $$PWD/ioapi.h \
         $$PWD/JlCompress.h \
         $$PWD/quaadler32.h \
         $$PWD/quachecksum32.h \
         $$PWD/quacrc32.h \
-        $$PWD/quagzipfile.h \
         $$PWD/quaziodevice.h \
         $$PWD/quazipdir.h \
         $$PWD/quazipfile.h \
         $$PWD/quazipfileinfo.h \
         $$PWD/quazip_global.h \
+        $$PWD/quazip_qt_compat.h \
         $$PWD/quazip.h \
         $$PWD/quazipnewinfo.h \
         $$PWD/unzip.h \
@@ -50,8 +50,8 @@ HEADERS += \
 SOURCES += $$PWD/qioapi.cpp \
            $$PWD/JlCompress.cpp \
            $$PWD/quaadler32.cpp \
+           $$PWD/quachecksum32.cpp \
            $$PWD/quacrc32.cpp \
-           $$PWD/quagzipfile.cpp \
            $$PWD/quaziodevice.cpp \
            $$PWD/quazip.cpp \
            $$PWD/quazipdir.cpp \
