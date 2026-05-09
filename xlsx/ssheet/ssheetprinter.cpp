@@ -6,7 +6,7 @@
 
 SSheetPrinter::SSheetPrinter(SSheetWorksheet *worksheet) :
     mWorksheet(worksheet),
-    mPaperSize(QPrinter::A4),
+    mPaperSize(QPageSize::A4),
     mMarginTop(20),
     mMarginBottom(20),
     mMarginLeft(20),
@@ -14,7 +14,7 @@ SSheetPrinter::SSheetPrinter(SSheetWorksheet *worksheet) :
 {
 }
 
-void SSheetPrinter::setPaperSize(QPrinter::PaperSize size)
+void SSheetPrinter::setPaperSize(QPageSize::PageSizeId size)
 {
     mPaperSize = size;
 }
