@@ -26,6 +26,7 @@ see quazip/(un)zip.h files for details. Basically it's the zlib license.
 
 #include <QSet>
 #include <QSharedData>
+#include <algorithm>
 
 /// \cond internal
 class QuaZipDirPrivate: public QSharedData {
@@ -103,7 +104,7 @@ bool QuaZipDir::cd(const QString &directoryName)
             if (!dir.cd("/"))
                 return false;
         }
-        QStringList path = dirName.split('/', QString::SkipEmptyParts);
+        QStringList path = dirName.split('/', Qt::SkipEmptyParts);
         for (QStringList::const_iterator i = path.constBegin();
                 i != path.end();
                 ++i) {
@@ -390,7 +391,7 @@ bool QuaZipDirPrivate::entryInfoList(QStringList nameFilters,
                 == Qt::CaseInsensitive)
             srt |= QDir::IgnoreCase;
         QuaZipDirComparator lessThan(srt);
-        qSort(list.begin(), list.end(), lessThan);
+        std::sort(list.begin(), list.end(), lessThan);
     }
     QuaZipDir_convertInfoList(list, result);
     return true;

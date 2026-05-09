@@ -1,9 +1,29 @@
-DEFINES += NOMINMAX QUAZIP_BUILD QUAZIP_STATIC
+DEFINES += NOMINMAX QUAZIP_BUILD QUAZIP_STATIC ZLIB_INTERNAL
 INCLUDEPATH += $$PWD
 CONFIG += warn_off
 
 msvc {
     INCLUDEPATH += $$PWD/../zlib
+    SOURCES += \
+        $$PWD/../zlib/adler32.c \
+        $$PWD/../zlib/compress.c \
+        $$PWD/../zlib/crc32.c \
+        $$PWD/../zlib/deflate.c \
+        $$PWD/../zlib/gzclose.c \
+        $$PWD/../zlib/gzlib.c \
+        $$PWD/../zlib/gzread.c \
+        $$PWD/../zlib/gzwrite.c \
+        $$PWD/../zlib/infback.c \
+        $$PWD/../zlib/inffast.c \
+        $$PWD/../zlib/inflate.c \
+        $$PWD/../zlib/inftrees.c \
+        $$PWD/../zlib/trees.c \
+        $$PWD/../zlib/uncompr.c \
+        $$PWD/../zlib/zutil.c
+
+    # Suppress LNK4217/LNK4286: zlib symbols defined locally but referenced
+    # as imports — harmless when zlib source is compiled directly into the plugin.
+    QMAKE_LFLAGS += /ignore:4217 /ignore:4286
 }
 else {
     LIBS += -lz

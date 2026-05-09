@@ -2,6 +2,7 @@
 #define SSHEETPRINTER_H
 
 #include <QPrinter>
+#include <QPageSize>
 
 class SSheetWorksheet;
 class SSheetPrinter
@@ -9,7 +10,7 @@ class SSheetPrinter
 public:
     SSheetPrinter(SSheetWorksheet *worksheet);
 
-    void setPaperSize(QPrinter::PaperSize size);
+    void setPaperSize(QPageSize::PageSizeId size);
     void setMargin(int value);
     void setMargin(int top, int bottom, int left, int right);
     void saveAsPdf(const QString &filename);

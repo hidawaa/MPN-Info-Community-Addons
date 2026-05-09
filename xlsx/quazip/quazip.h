@@ -27,7 +27,18 @@ quazip/(un)zip.h files for details, basically it's zlib license.
 
 #include <QString>
 #include <QStringList>
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+class QTextCodec {
+public:
+    static QTextCodec *codecForLocale() { static QTextCodec c; return &c; }
+    static QTextCodec *codecForName(const char *) { return codecForLocale(); }
+    QString toUnicode(const char *chars) const { return QString::fromUtf8(chars); }
+    QString toUnicode(const QByteArray &a) const { return QString::fromUtf8(a); }
+    QByteArray fromUnicode(const QString &str) const { return str.toUtf8(); }
+};
+#else
 #include <QTextCodec>
+#endif
 
 #include "zip.h"
 #include "unzip.h"
