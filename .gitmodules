@@ -1,0 +1,3 @@
+[submodule "mfwp/QXlsx"]
+	path = mfwp/QXlsx
+	url = https://github.com/QtExcel/QXlsx.git
