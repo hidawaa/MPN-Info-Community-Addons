@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/mfwp">
+        <file>src/copy.png</file>
+    </qresource>
+</RCC>
