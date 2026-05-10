@@ -2,17 +2,50 @@
 #define HOMEPAGE_P_H
 
 #include <QObject>
-#include <QSqlQuery>
+#include <QMetaObject>
+#include <QList>
+#include <QVariantMap>
 
 #include <coreengine.h>
+#include <runnable.h>
+#include <enums.h>
 
+class HomeFunction;
+
+// ---------------------------------------------------------------------------
+// HomeDataRunnable – runs all DB queries synchronously in a background thread
+// Results are dispatched back to the main thread via invokeMethod (Queued).
+// ---------------------------------------------------------------------------
+class HomeDataRunnable : public Runnable
+{
+public:
+    HomeDataRunnable(CoreEngine *engine, HomeFunction *fn,
+                     const QString &kodeKantor, const QStringList &kantorList,
+                     int tahun)
+        : mEngine(engine), mFunction(fn), mKantor(kodeKantor),
+          mKantorList(kantorList), mTahun(tahun) {}
+
+    void run() override;
+
+private:
+    CoreEngine   *mEngine;
+    HomeFunction *mFunction;
+    QString       mKantor;
+    QStringList   mKantorList;
+    int           mTahun;
+};
+
+// ---------------------------------------------------------------------------
+// HomeFunction – lightweight QObject that owns the async job and emits signals
+// ---------------------------------------------------------------------------
 class HomeFunction : public QObject
 {
     Q_OBJECT
 
-    CoreEngine *mEngine;
-    QString mKantor;
-    int mTahun;
+    CoreEngine  *mEngine;
+    QString      mKantor;
+    QStringList  mKantorList;
+    int          mTahun;
 
 public:
     enum DataType {
@@ -26,292 +59,265 @@ public:
         DataSpmppLastYear,
         DataRenpenCurrentYear,
         DataPbkLastYear,
-        DataPbkCurrentYear
+        DataPbkCurrentYear,
+        DataLastMpnDate,
+        DataLastSpmDate
     };
 
-    HomeFunction(CoreEngine *engine, QObject *parent = nullptr) : QObject(parent), mEngine(engine), mNumFuture(0), mStarted(false) {}
+    HomeFunction(CoreEngine *engine, QObject *parent = nullptr)
+        : QObject(parent), mEngine(engine), mTahun(0) {}
 
     void setKantor(const QString &kodeKantor) { mKantor = kodeKantor; }
+    void setKantorList(const QStringList &list) { mKantorList = list; }
     void setTahun(int tahun) { mTahun = tahun; }
 
     void start()
     {
-        Kantor kantor = mEngine->kantor(mKantor);
-
-        /*
-        QString filter, filterRenpen, filterPbk;
-        if (!kantor.kpp.isEmpty())
-        {
-            filter += QString("`admin` = '%1'")
-                    .arg(kantor.kpp);
-            filterRenpen += QString("`kpp` = '%1'")
-                    .arg(kantor.kpp);
-            filterPbk += QString("(`kpp`='%1' OR `kpp2`='%1')")
-                    .arg(kantor.kpp);
-        }
-
-        if (!filter.isEmpty())
-            filter.prepend("AND ");
-
-        if (!filterRenpen.isEmpty())
-            filterRenpen.prepend("AND ");
-
-        if (!filterPbk.isEmpty())
-            filterPbk.prepend("AND ");
-
-        QSqlQuery query(mEngine->database());
-
-        for (int i=0; i<=1; i++)
-        {
-            int yearQuery = mTahun - i;
-            QString totalPenerimaanBulanSql = QString("SELECT `npwp`, `kpp`, `cabang`, `bulanbayar`, SUM(`nominal`), `source`, `tahunbayar` FROM `mpn` WHERE `tahunbayar`='%1' %2 GROUP BY `npwp`, `kpp`, `cabang`, `bulanbayar`, `source` ORDER BY `bulanbayar`").arg(yearQuery).arg(filter);
-            QueryWatcher *watcher = query.exec(totalPenerimaanBulanSql);
-
-            connect(watcher, SIGNAL(finished()), SLOT(onPenerimaanQueryFinished()));
-            mNumFuture++;
-        }
-
-        for (int i=0; i<=1; i++)
-        {
-            int yearQuery = mTahun - i;
-            QString totalSpmkpSql = QString("SELECT `npwp`, `kpp`, `cabang`, `bulan`, SUM(`nominal`), `tahun` FROM `spmkp` WHERE `tahun`='%1' %2 GROUP BY `npwp`, `kpp`, `cabang`, `bulan` ORDER BY `bulan`").arg(yearQuery).arg(filter);
-            QueryWatcher *watcher = query.exec(totalSpmkpSql);
-
-            connect(watcher, SIGNAL(finished()), SLOT(onSpmkpQueryFinished()));
-            mNumFuture++;
-        }
-
-        for (int i=0; i<=1; i++) {
-            int yearQuery = mTahun - i;
-            QString totalSpmppSql = QString("SELECT `npwp`, `kpp`, `cabang`, `bulan`, SUM(`nominal`), `tahun` FROM `spmpp` WHERE `tahun`='%1' %2 GROUP BY `npwp`, `kpp`, `cabang`, `bulan` ORDER BY `bulan`").arg(yearQuery).arg(filter);
-            QueryWatcher *watcher = query.exec(totalSpmppSql);
-
-            connect(watcher, SIGNAL(finished()), SLOT(onSpmppQueryFinished()));
-            mNumFuture++;
-        }
-
-        for (int i=0; i<=1; i++) {
-            int yearQuery = mTahun - i;
-
-            QString totalPbkSql;
-            if (mEngine->databaseDriverName() == IDD_DATABASE_DRIVER_MYSQL)
-                totalPbkSql = QString("SELECT YEAR(`tanggaldoc`) as `tahundoc`, MONTH(`tanggaldoc`) as `bulandoc`, `npwp`, `kpp`, `cabang`, `npwp2`, `kpp2`, `cabang2`, SUM(`nominal`) FROM `pbk` WHERE YEAR(`tanggaldoc`)='%1' %2 GROUP BY `tahundoc`, `bulandoc`, `npwp`, `kpp`, `cabang`, `npwp2`, `kpp2`, `cabang2`").arg(yearQuery).arg(filterPbk);
-            else
-                totalPbkSql = QString("SELECT strftime('%Y',`tanggaldoc`) as `tahundoc`, strftime('%m',`tanggaldoc`) as `bulandoc`, `npwp`, `kpp`, `cabang`, `npwp2`, `kpp2`, `cabang2`, SUM(`nominal`) FROM `pbk` WHERE strftime('%Y',`tanggaldoc`)='%1' %2 GROUP BY `tahundoc`, `bulandoc`, `npwp`, `kpp`, `cabang`, `npwp2`, `kpp2`, `cabang2`").arg(yearQuery).arg(filterPbk);
-            QueryWatcher *watcher = query.exec(totalPbkSql);
-
-            connect(watcher, SIGNAL(finished()), SLOT(onPbkQueryFinished()));
-            mNumFuture++;
-        }
-
-        {
-            QString totalRenpenSql = QString("SELECT `nip`, `bulan`, SUM(`target`) FROM `renpen` WHERE `tahun`='%1' %2 GROUP BY `nip`, `bulan`").arg(mTahun).arg(filterRenpen);
-            QueryWatcher *watcher = query.exec(totalRenpenSql);
-
-            connect(watcher, SIGNAL(finished()), SLOT(onRenpenQueryFinished()));
-            mNumFuture++;
-        }
-
-        mStarted = true;
-        */
+        mEngine->runAsync(
+            new HomeDataRunnable(mEngine, this, mKantor, mKantorList, mTahun));
     }
+
+public slots:
+    // Called by HomeDataRunnable via QMetaObject::invokeMethod (QueuedConnection)
+    void emitGotData(const QVariantMap &data) { emit gotData(data); }
+    void emitFinished()                        { emit finished(); }
 
 signals:
     void finished();
     void gotData(const QVariantMap &data);
-
-private slots:
-    void onPenerimaanQueryFinished() {
-        /*
-        QueryWatcher *watcher = static_cast<QueryWatcher *>(QObject::sender());
-
-        RecordList resultList = watcher->result();
-        watcher->deleteLater();
-
-        foreach (const QSqlRecord &record, resultList)
-        {
-            QString npwp = record.value(0).toString();
-            QString kpp = record.value(1).toString();
-            QString cabang = record.value(2).toString();
-            int bulan = record.value(3).toInt();
-            double nominal = record.value(4).toDouble();
-            int source = record.value(5).toInt();
-            int tahun = record.value(6).toInt();
-
-            QVariantMap data;
-            data["npwp"] = npwp;
-            data["kpp"] = kpp;
-            data["cabang"] = cabang;
-            data["bulan"] = bulan;
-            data["nominal"] = nominal;
-
-            if (source == SourceMpn) {
-                if (tahun == mTahun)
-                    data["type"] = DataMpnCurrentYear;
-                else
-                    data["type"] = DataMpnLastYear;
-            }
-
-            if (source == SourceSpm) {
-                if (tahun == mTahun)
-                    data["type"] = DataSpmCurrentYear;
-                else
-                    data["type"] = DataSpmLastYear;
-            }
-
-            emit gotData(data);
-        }
-
-        mNumFuture--;
-        if (mStarted && mNumFuture <= 0)
-            emit finished();
-        */
-    }
-
-    void onSpmkpQueryFinished() {
-        /*
-        QueryWatcher *watcher = static_cast<QueryWatcher *>(QObject::sender());
-
-        RecordList resultList = watcher->result();
-        watcher->deleteLater();
-
-        foreach (const QSqlRecord &record, resultList)
-        {
-            QString npwp = record.value(0).toString();
-            QString kpp = record.value(1).toString();
-            QString cabang = record.value(2).toString();
-            int bulan = record.value(3).toInt();
-            double nominal = record.value(4).toDouble();
-            int tahun = record.value(5).toInt();
-
-            QVariantMap data;
-            data["npwp"] = npwp;
-            data["kpp"] = kpp;
-            data["cabang"] = cabang;
-            data["bulan"] = bulan;
-            data["nominal"] = nominal;
-
-            if (tahun == mTahun)
-                data["type"] = DataSpmkpCurrentYear;
-            else
-                data["type"] = DataSpmkpLastYear;
-
-            emit gotData(data);
-        }
-
-        mNumFuture--;
-        if (mStarted && mNumFuture <= 0)
-            emit finished();
-        */
-    }
-
-    void onSpmppQueryFinished() {
-        /*
-        QueryWatcher *watcher = static_cast<QueryWatcher *>(QObject::sender());
-
-        RecordList resultList = watcher->result();
-        watcher->deleteLater();
-
-        foreach (const QSqlRecord &record, resultList)
-        {
-            QString npwp = record.value(0).toString();
-            QString kpp = record.value(1).toString();
-            QString cabang = record.value(2).toString();
-            int bulan = record.value(3).toInt();
-            double nominal = record.value(4).toDouble();
-            int tahun = record.value(5).toInt();
-
-            QVariantMap data;
-            data["npwp"] = npwp;
-            data["kpp"] = kpp;
-            data["cabang"] = cabang;
-            data["bulan"] = bulan;
-            data["nominal"] = nominal;
-
-            if (tahun == mTahun)
-                data["type"] = DataSpmppCurrentYear;
-            else
-                data["type"] = DataSpmppLastYear;
-
-            emit gotData(data);
-        }
-
-        mNumFuture--;
-        if (mStarted && mNumFuture <= 0)
-            emit finished();
-        */
-    }
-
-    void onPbkQueryFinished() {
-        /*
-        QueryWatcher *watcher = static_cast<QueryWatcher *>(QObject::sender());
-
-        RecordList resultList = watcher->result();
-        watcher->deleteLater();
-
-        foreach (const QSqlRecord &record, resultList)
-        {
-            int tahun = record.value(0).toInt();
-            int bulan = record.value(1).toInt();
-            QString npwp = record.value(2).toString();
-            QString kpp = record.value(3).toString();
-            QString cabang = record.value(4).toString();
-            QString npwp2 = record.value(5).toString();
-            QString kpp2 = record.value(6).toString();
-            QString cabang2 = record.value(7).toString();
-            double nominal = record.value(8).toDouble();
-
-            QVariantMap data;
-            data["bulan"] = bulan;
-            data["npwp"] = npwp;
-            data["kpp"] = kpp;
-            data["cabang"] = cabang;
-            data["npwp2"] = npwp2;
-            data["kpp2"] = kpp2;
-            data["cabang2"] = cabang2;
-            data["nominal"] = nominal;
-
-            if (tahun == mTahun)
-                data["type"] = DataPbkCurrentYear;
-            else
-                data["type"] = DataPbkLastYear;
-
-            emit gotData(data);
-        }
-
-        mNumFuture--;
-        if (mStarted && mNumFuture <= 0)
-            emit finished();
-        */
-    }
-
-    void onRenpenQueryFinished() {
-        /*
-        QueryWatcher *watcher = static_cast<QueryWatcher *>(QObject::sender());
-
-        RecordList resultList = watcher->result();
-        watcher->deleteLater();
-
-        foreach (const QSqlRecord &record, resultList)
-        {
-            QVariantMap data;
-            data["type"] = DataRenpenCurrentYear;
-            data["nip"] = record.value(0).toString();;
-            data["bulan"] = record.value(1).toInt();;
-            data["nominal"] = record.value(2).toDouble();
-
-            emit gotData(data);
-        }
-
-        mNumFuture--;
-        if (mStarted && mNumFuture <= 0)
-            emit finished();
-        */
-    }
-
-private:
-    int mNumFuture;
-    bool mStarted;
 };
+
+// ---------------------------------------------------------------------------
+// HomeDataRunnable::run  – executes on a worker thread
+// ---------------------------------------------------------------------------
+inline void HomeDataRunnable::run()
+{
+    DatabasePtr db = mEngine->database();
+    if (!db)  {
+        QMetaObject::invokeMethod(mFunction, "emitFinished", Qt::QueuedConnection);
+        return;
+    }
+
+    // Build filter strings.
+    // MPN table uses column `admin` for KPP code.
+    // SPMKP / SPMPP / Renpen use column `kpp`.
+    // PBK uses `kpp` and `kpp2`.
+    QString filterMpn, filterSpmkp, filterSpmpp, filterRenpen, filterPbk;
+
+    if (!mKantorList.isEmpty()) {
+        // Build an IN list for each type
+        QStringList quoted;
+        for (const QString &k : mKantorList)
+            quoted << QString("'%1'").arg(k);
+        QString inList = quoted.join(",");
+
+        filterMpn     = QString("`admin` IN (%1)").arg(inList);
+        filterSpmkp   = QString("`kpp` IN (%1)").arg(inList);
+        filterSpmpp   = QString("`kpp` IN (%1)").arg(inList);
+        filterRenpen  = QString("`kpp` IN (%1)").arg(inList);
+        filterPbk     = QString("(`kpp` IN (%1) OR `kpp2` IN (%1))").arg(inList);
+    } else {
+        // Single kantor
+        filterMpn     = QString("`admin` = '%1'").arg(mKantor);
+        filterSpmkp   = QString("`kpp` = '%1'").arg(mKantor);
+        filterSpmpp   = QString("`kpp` = '%1'").arg(mKantor);
+        filterRenpen  = QString("`kpp` = '%1'").arg(mKantor);
+        filterPbk     = QString("(`kpp`='%1' OR `kpp2`='%1')").arg(mKantor);
+    }
+
+    // -----------------------------------------------------------------------
+    // 1) MPN (penerimaan) – current & previous year
+    // -----------------------------------------------------------------------
+    for (int i = 0; i <= 1; i++) {
+        int yearQuery = mTahun - i;
+        QString sql = QString(
+            "SELECT `npwp`, `kpp`, `cabang`, `bulanbayar`, SUM(`nominal`), `source`, `tahunbayar` "
+            "FROM `mpn` WHERE `tahunbayar`='%1' AND %2 "
+            "GROUP BY `npwp`, `kpp`, `cabang`, `bulanbayar`, `source` ORDER BY `bulanbayar`"
+        ).arg(yearQuery).arg(filterMpn);
+
+        db->exec(sql);
+        while (db->next()) {
+            int  source = db->value(5).toInt();
+            int  tahun  = db->value(6).toInt();
+
+            int dataType;
+            if (source == MpnSourceMpn)
+                dataType = (tahun == mTahun) ? HomeFunction::DataMpnCurrentYear : HomeFunction::DataMpnLastYear;
+            else if (source == MpnSourceSpm)
+                dataType = (tahun == mTahun) ? HomeFunction::DataSpmCurrentYear : HomeFunction::DataSpmLastYear;
+            else
+                continue;
+
+            QVariantMap data;
+            data["type"]   = dataType;
+            data["npwp"]   = db->value(0).toString();
+            data["kpp"]    = db->value(1).toString();
+            data["cabang"] = db->value(2).toString();
+            data["bulan"]  = db->value(3).toInt();
+            data["nominal"]= db->value(4).toDouble();
+
+            QMetaObject::invokeMethod(mFunction, "emitGotData",
+                Qt::QueuedConnection, Q_ARG(QVariantMap, data));
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // 2) SPMKP – current & previous year
+    // -----------------------------------------------------------------------
+    for (int i = 0; i <= 1; i++) {
+        int yearQuery = mTahun - i;
+        QString sql = QString(
+            "SELECT `npwp`, `kpp`, `cabang`, `bulan`, SUM(`nominal`), `tahun` "
+            "FROM `spmkp` WHERE `tahun`='%1' AND %2 "
+            "GROUP BY `npwp`, `kpp`, `cabang`, `bulan` ORDER BY `bulan`"
+        ).arg(yearQuery).arg(filterSpmkp);
+
+        db->exec(sql);
+        while (db->next()) {
+            int tahun = db->value(5).toInt();
+            QVariantMap data;
+            data["type"]   = (tahun == mTahun) ? HomeFunction::DataSpmkpCurrentYear : HomeFunction::DataSpmkpLastYear;
+            data["npwp"]   = db->value(0).toString();
+            data["kpp"]    = db->value(1).toString();
+            data["cabang"] = db->value(2).toString();
+            data["bulan"]  = db->value(3).toInt();
+            data["nominal"]= db->value(4).toDouble();
+            QMetaObject::invokeMethod(mFunction, "emitGotData",
+                Qt::QueuedConnection, Q_ARG(QVariantMap, data));
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // 3) SPMPP – current & previous year
+    // -----------------------------------------------------------------------
+    for (int i = 0; i <= 1; i++) {
+        int yearQuery = mTahun - i;
+        QString sql = QString(
+            "SELECT `npwp`, `kpp`, `cabang`, `bulan`, SUM(`nominal`), `tahun` "
+            "FROM `spmpp` WHERE `tahun`='%1' AND %2 "
+            "GROUP BY `npwp`, `kpp`, `cabang`, `bulan` ORDER BY `bulan`"
+        ).arg(yearQuery).arg(filterSpmpp);
+
+        db->exec(sql);
+        while (db->next()) {
+            int tahun = db->value(5).toInt();
+            QVariantMap data;
+            data["type"]   = (tahun == mTahun) ? HomeFunction::DataSpmppCurrentYear : HomeFunction::DataSpmppLastYear;
+            data["npwp"]   = db->value(0).toString();
+            data["kpp"]    = db->value(1).toString();
+            data["cabang"] = db->value(2).toString();
+            data["bulan"]  = db->value(3).toInt();
+            data["nominal"]= db->value(4).toDouble();
+            QMetaObject::invokeMethod(mFunction, "emitGotData",
+                Qt::QueuedConnection, Q_ARG(QVariantMap, data));
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // 4) PBK – current & previous year
+    // -----------------------------------------------------------------------
+    for (int i = 0; i <= 1; i++) {
+        int yearQuery = mTahun - i;
+        QString sql;
+        if (db->driverName() == "QMYSQL") {
+            sql = QString(
+                "SELECT YEAR(`tanggaldoc`) as `tahundoc`, MONTH(`tanggaldoc`) as `bulandoc`, "
+                "`npwp`, `kpp`, `cabang`, `npwp2`, `kpp2`, `cabang2`, SUM(`nominal`) "
+                "FROM `pbk` WHERE YEAR(`tanggaldoc`)='%1' AND %2 "
+                "GROUP BY `tahundoc`, `bulandoc`, `npwp`, `kpp`, `cabang`, `npwp2`, `kpp2`, `cabang2`"
+            ).arg(yearQuery).arg(filterPbk);
+        } else {
+            sql = QString(
+                "SELECT strftime('%%Y',`tanggaldoc`) as `tahundoc`, strftime('%%m',`tanggaldoc`) as `bulandoc`, "
+                "`npwp`, `kpp`, `cabang`, `npwp2`, `kpp2`, `cabang2`, SUM(`nominal`) "
+                "FROM `pbk` WHERE strftime('%%Y',`tanggaldoc`)='%1' AND %2 "
+                "GROUP BY `tahundoc`, `bulandoc`, `npwp`, `kpp`, `cabang`, `npwp2`, `kpp2`, `cabang2`"
+            ).arg(yearQuery).arg(filterPbk);
+        }
+
+        db->exec(sql);
+        while (db->next()) {
+            int tahun = db->value(0).toInt();
+            QVariantMap data;
+            data["type"]   = (tahun == mTahun) ? HomeFunction::DataPbkCurrentYear : HomeFunction::DataPbkLastYear;
+            data["bulan"]  = db->value(1).toInt();
+            data["npwp"]   = db->value(2).toString();
+            data["kpp"]    = db->value(3).toString();
+            data["cabang"] = db->value(4).toString();
+            data["npwp2"]  = db->value(5).toString();
+            data["kpp2"]   = db->value(6).toString();
+            data["cabang2"]= db->value(7).toString();
+            data["nominal"]= db->value(8).toDouble();
+            QMetaObject::invokeMethod(mFunction, "emitGotData",
+                Qt::QueuedConnection, Q_ARG(QVariantMap, data));
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // 5) Renpen (rencana penerimaan) – current year only
+    // -----------------------------------------------------------------------
+    {
+        QString sql = QString(
+            "SELECT `nip`, `bulan`, SUM(`target`) "
+            "FROM `renpen` WHERE `tahun`='%1' AND %2 "
+            "GROUP BY `nip`, `bulan`"
+        ).arg(mTahun).arg(filterRenpen);
+
+        db->exec(sql);
+        while (db->next()) {
+            QVariantMap data;
+            data["type"]   = HomeFunction::DataRenpenCurrentYear;
+            data["nip"]    = db->value(0).toString();
+            data["bulan"]  = db->value(1).toInt();
+            data["nominal"]= db->value(2).toDouble();
+            QMetaObject::invokeMethod(mFunction, "emitGotData",
+                Qt::QueuedConnection, Q_ARG(QVariantMap, data));
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // 6) Last MPN date: MAX(datebayar) from mpn WHERE source=1
+    // -----------------------------------------------------------------------
+    {
+        QString sql = QString(
+            "SELECT MAX(`datebayar`) FROM `mpn` WHERE `source`=%1 AND %2"
+        ).arg(MpnSourceMpn).arg(filterMpn);
+        db->exec(sql);
+        if (db->next()) {
+            QDate lastDate = db->value(0).toDate();
+            if (lastDate.isValid()) {
+                QVariantMap data;
+                data["type"]  = HomeFunction::DataLastMpnDate;
+                data["value"] = lastDate.toString("dd-MM-yyyy");
+                QMetaObject::invokeMethod(mFunction, "emitGotData",
+                    Qt::QueuedConnection, Q_ARG(QVariantMap, data));
+            }
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // 7) Last SPM date: MAX(datebayar) from mpn WHERE source=2
+    // -----------------------------------------------------------------------
+    {
+        QString sql = QString(
+            "SELECT MAX(`datebayar`) FROM `mpn` WHERE `source`=%1 AND %2"
+        ).arg(MpnSourceSpm).arg(filterMpn);
+        db->exec(sql);
+        if (db->next()) {
+            QDate lastDate = db->value(0).toDate();
+            if (lastDate.isValid()) {
+                QVariantMap data;
+                data["type"]  = HomeFunction::DataLastSpmDate;
+                data["value"] = lastDate.toString("dd-MM-yyyy");
+                QMetaObject::invokeMethod(mFunction, "emitGotData",
+                    Qt::QueuedConnection, Q_ARG(QVariantMap, data));
+            }
+        }
+    }
+
+    // Signal completion back to main thread
+    QMetaObject::invokeMethod(mFunction, "emitFinished", Qt::QueuedConnection);
+}
 
 #endif // HOMEPAGE_P_H

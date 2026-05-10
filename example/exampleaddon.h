@@ -67,7 +67,8 @@ public:
     QString group() { return "Example"; }
     QString title() { return "Example AddOn Process"; }
     AddOnTypes type() { return AddOnProcess; }
-    int loadFlags() { return AddOnCreateMenu | AddOnExecAfterLogin; }
+    // int loadFlags() { return AddOnCreateMenu | AddOnExecAfterLogin; }
+    int loadFlags() { return AddOnCreateMenu; }
     int permission() { return 0; }
     ProcessPtr newProcess() { return ProcessPtr(new ExampleProcess); }
 };

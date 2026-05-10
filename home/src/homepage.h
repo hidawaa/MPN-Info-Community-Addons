@@ -6,9 +6,7 @@
 
 #include <coreengine.h>
 
-QT_CHARTS_BEGIN_NAMESPACE
 class QChartView;
-QT_CHARTS_END_NAMESPACE
 
 class QLabel;
 class QComboBox;
@@ -17,10 +15,9 @@ class QTabWidget;
 class PenerimaanDialer;
 class Controller;
 class HomeFunction;
-class CustomTableView;
+class QTableView;
 class CustomChartView;
 
-QT_CHARTS_USE_NAMESPACE
 
 class HomePage : public Page
 {
@@ -43,7 +40,7 @@ private:
     QStackedWidget *mStackedWidget;
 
     QTabWidget *mTabWidget;
-    CustomTableView *mResultView;
+    QTableView *mResultView;
 
     QComboBox *mKantorComboBox;
     QComboBox *mYearComboBox;
@@ -59,6 +56,7 @@ private:
 
     Kantor mKantor;
     QStringList mKantorList;
+    PegawaiHash mPegawaiHash;
 
     QHash<int, QHash<int, double> > mTotalMpnBulanCurrentYearHash;
     QHash<int, QHash<int, double> > mTotalMpnBulanLastYearHash;
@@ -71,6 +69,9 @@ private:
     QHash<int, QHash<int, double> > mTotalPbkCurrentYearHash;
     QHash<int, QHash<int, double> > mTotalPbkLastYearHash;
     QHash<int, QHash<int, double> > mTotalRenpenCurrentYearHash;
+
+    QString mLastMpnDate;
+    QString mLastSpmDate;
 
     QHash<int, PenerimaanDialer *> mDialerSeksiHash;
     QHash<int, CustomChartView *> mBandingAkumulasiSeksiChartHash;

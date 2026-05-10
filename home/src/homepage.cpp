@@ -15,6 +15,7 @@
 #include <QScrollArea>
 #include <QPalette>
 #include <QPushButton>
+#include <QProgressBar>
 
 #include "customchartview.h"
 #include <QStackedBarSeries>
@@ -27,11 +28,12 @@
 #include <QBarCategoryAxis>
 #include <QValueAxis>
 
-#include "customtableview.h"
+#include <QTableView>
 #include "dialer.h"
 #include "penerimaandialer.h"
+#include "standarditemdelegate.h"
 
-QT_CHARTS_USE_NAMESPACE
+
 
 HomePage::HomePage(CoreEngine *engine, QWidget *parent) :
     Page(parent),
@@ -41,23 +43,24 @@ HomePage::HomePage(CoreEngine *engine, QWidget *parent) :
 
     mKantorComboBox = new QComboBox;
     QString kodeKantor = mEngine->databaseSettings()->value("kantor.kode").toString();
-    Kantor kantor = mEngine->kantor(kodeKantor);
+    Kantor kantor = mEngine->data()->kantor(kodeKantor);
 
-    if (kantor.kpp.isEmpty()) {
-        foreach (const Kantor &tempKantor, mEngine->kppList(kantor.kanwil))
-            mKantorComboBox->addItem(tempKantor.nama, tempKantor.kpp);
+    if (kantor.type == Kanwil) {
+        foreach (const Kantor &tempKantor, mEngine->data()->kppList(kantor.kanwil))
+            mKantorComboBox->addItem(tempKantor.nama, tempKantor.kode);
     }
     else
-        mKantorComboBox->addItem(kantor.nama, kantor.kpp);
+        mKantorComboBox->addItem(kantor.nama, kantor.kode);
 
     QDate currentDate = QDate::currentDate();
     mYearComboBox = new QComboBox;
 
     mYearComboBox->addItem(QString::number(currentDate.year()), currentDate.year());
     QString tahunSql = QString("SELECT DISTINCT `tahunbayar` FROM `mpn` ORDER BY `tahunbayar` DESC");
-    QSqlQuery tahunQuery(tahunSql, mEngine->database());
-    while (tahunQuery.next()) {
-        int tahun = tahunQuery.value(0).toInt();
+    DatabasePtr db = mEngine->database();
+    db->exec(tahunSql);
+    while (db->next()) {
+        int tahun = db->value(0).toInt();
         if (tahun == currentDate.year())
             continue;
 
@@ -93,7 +96,7 @@ HomePage::HomePage(CoreEngine *engine, QWidget *parent) :
 
         QCategoryAxis *axisX = new QCategoryAxis;
         for (int bulan=1; bulan <= 12; bulan++)
-            axisX->append(Common::toNamaBulan(bulan), bulan);
+            axisX->append(mEngine->common()->namaBulan(bulan), bulan);
         axisX->setLabelsPosition(QCategoryAxis::AxisLabelsPositionOnValue);
         axisX->setMin(0);
         axisX->setMax(13);
@@ -144,7 +147,7 @@ HomePage::HomePage(CoreEngine *engine, QWidget *parent) :
 
         QBarCategoryAxis *axisX = new QBarCategoryAxis;
         for (int bulan=1; bulan <= 12; bulan++)
-            axisX->append(Common::toNamaBulan(bulan));
+            axisX->append(mEngine->common()->namaBulan(bulan));
 
         QValueAxis *axisY = new QValueAxis;
         axisY->setTitleText("Rupiah (Miliar)");
@@ -182,6 +185,7 @@ HomePage::HomePage(CoreEngine *engine, QWidget *parent) :
     }
 
     QFont versionFont;
+    versionFont.setFamily("Tahoma");
     versionFont.setBold(true);
     versionFont.setPixelSize(11);
 
@@ -197,7 +201,7 @@ HomePage::HomePage(CoreEngine *engine, QWidget *parent) :
     leftSideWidget->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
 
     QVBoxLayout *leftSideLayout = new QVBoxLayout;
-    leftSideLayout->setMargin(0);
+    leftSideLayout->setContentsMargins(0, 0, 0, 0);
     leftSideWidget->setLayout(leftSideLayout);
     leftSideLayout->addWidget(mDialer, 1, Qt::AlignCenter);
     leftSideLayout->addWidget(mLastMpnLabel);
@@ -216,15 +220,16 @@ HomePage::HomePage(CoreEngine *engine, QWidget *parent) :
 
     mSeksiStackedWidget = new QStackedWidget;
 
-    mResultView = new CustomTableView;
+    mResultView = new QTableView;
     mResultView->verticalHeader()->hide();
     mResultView->horizontalHeader()->hide();
     mResultView->setStyleSheet("QTableView { border: none; }");
     mResultView->setAlternatingRowColors(false);
     mResultView->setGridStyle(Qt::DotLine);
+    mResultView->setItemDelegate(new StandardItemDelegate(mResultView));
 
     QVBoxLayout *textLayout = new QVBoxLayout;
-    textLayout->setMargin(0);
+    textLayout->setContentsMargins(0, 0, 0, 0);
     textLayout->addWidget(mResultView);
 
     QWidget *textWidget = new QWidget;
@@ -234,8 +239,17 @@ HomePage::HomePage(CoreEngine *engine, QWidget *parent) :
     mTabWidget->addTab(mSeksiStackedWidget, "Seksi");
     mTabWidget->addTab(textWidget, "Angka");
 
-    QHBoxLayout *loadingLayout = new QHBoxLayout;
-    loadingLayout->addWidget(new QLabel("Memuat Data..."), 1, Qt::AlignCenter);
+    QVBoxLayout *loadingLayout = new QVBoxLayout;
+    QLabel *loadingLabel = new QLabel("Memuat Data...");
+    loadingLabel->setAlignment(Qt::AlignCenter);
+    QProgressBar *progressBar = new QProgressBar;
+    progressBar->setRange(0, 0);
+    progressBar->setFixedWidth(300);
+    
+    loadingLayout->addStretch();
+    loadingLayout->addWidget(loadingLabel);
+    loadingLayout->addWidget(progressBar, 0, Qt::AlignHCenter);
+    loadingLayout->addStretch();
 
     QWidget *loadingWidget = new QWidget;
     loadingWidget->setLayout(loadingLayout);
@@ -260,7 +274,7 @@ HomePage::HomePage(CoreEngine *engine, QWidget *parent) :
 
         winnerLabel->setFont(winnerFont);
         winnerLabel->setTextFormat(Qt::RichText);
-        winnerLabel->setText(QString("Selamat kepada seluruh pegawai <b>%1</b>, karena capaian realisasi penerimaan kantor sudah <b><i>100%</i></b> !!!").arg(kantor.nama()));
+        winnerLabel->setText(QString("Selamat kepada seluruh pegawai <b>%1</b>, karena capaian realisasi penerimaan kantor sudah <b><i>100%</i></b> !!!").arg(kantor.nama));
 
         QHBoxLayout *winnerButtonLayout = new QHBoxLayout;
         winnerButtonLayout->addStretch();
@@ -286,7 +300,7 @@ HomePage::HomePage(CoreEngine *engine, QWidget *parent) :
     layout->addWidget(mStackedWidget);
 
     setLayout(layout);
-    setWindowIcon(QIcon(IDR_LOGO));
+
 
     connect(mFunction, SIGNAL(gotData(QVariantMap)), SLOT(gotData(QVariantMap)));
     connect(mFunction, SIGNAL(finished()), SLOT(updateResult()));
@@ -310,20 +324,27 @@ void HomePage::refresh()
     delete seksiWidget;
 
     QString kodeKantor = mKantorComboBox->currentData().toString();
-    mKantor = Kantor::getKantor(kodeKantor);
-    if (mKantor.isKanwil())
+    mKantor = mEngine->data()->kantor(kodeKantor);
+    if (mKantor.type == Kanwil)
     {
         QStringList tempList;
-        foreach (const Kantor &kantor, Kantor::getKppKanwilList(kodeKantor))
-            tempList << kantor.kpp();
+        foreach (const Kantor &kantor, mEngine->data()->kppList(kodeKantor))
+            tempList << kantor.kode;
         mKantorList = tempList;
     }
     else
         mKantorList = QStringList() << kodeKantor;
 
-    mPegawaiHash = Pegawai::getPegawaiHash(kodeKantor, QDate::currentDate().year());
+    mPegawaiHash.clear();
+    mLastMpnDate.clear();
+    mLastSpmDate.clear();
+
+    foreach (const Pegawai &p, mEngine->data()->pegawaiList(kodeKantor, QDate::currentDate().year())) {
+        mPegawaiHash.insert(p.nip, p);
+    }
 
     mFunction->setKantor(mKantorComboBox->currentData().toString());
+    mFunction->setKantorList(mKantorList);
     mFunction->setTahun(mYearComboBox->currentData().toInt());
 
     mKantorComboBox->setEnabled(false);
@@ -357,15 +378,15 @@ void HomePage::gotData(const QVariantMap &data)
     case HomeFunction::DataSpmkpLastYear:
     case HomeFunction::DataSpmppCurrentYear:
     case HomeFunction::DataSpmppLastYear:
-        seksi = mPegawaiHash[mEngine->wajibPajakHash()[npwp + kpp + cabang].nipPj()].seksi();
+        seksi = mPegawaiHash[mEngine->data()->wajibPajakHash()[npwp + kpp + cabang].ar].seksi.id;
         break;
     case HomeFunction::DataPbkLastYear:
     case HomeFunction::DataPbkCurrentYear:
-        seksi = mPegawaiHash[mEngine->wajibPajakHash()[npwp + kpp + cabang].nipPj()].seksi();
-        seksi2 = mPegawaiHash[mEngine->wajibPajakHash()[npwp2 + kpp2 + cabang2].nipPj()].seksi();
+        seksi = mPegawaiHash[mEngine->data()->wajibPajakHash()[npwp + kpp + cabang].ar].seksi.id;
+        seksi2 = mPegawaiHash[mEngine->data()->wajibPajakHash()[npwp2 + kpp2 + cabang2].ar].seksi.id;
         break;
     case HomeFunction::DataRenpenCurrentYear:
-        seksi = mPegawaiHash[nip].seksi();
+        seksi = mPegawaiHash[nip].seksi.id;
         break;
     default:
         break;
@@ -399,7 +420,7 @@ void HomePage::gotData(const QVariantMap &data)
         break;
     case HomeFunction::DataPbkLastYear:
     {
-        if (mEngine->serverSetting("hitung.pbk").toBool()) {
+        if (mEngine->settings()->value("hitung.pbk").toBool()) {
             if (mKantorList.contains(kpp))
                 mTotalPbkLastYearHash[seksi][bulan] -= nominal;
 
@@ -407,17 +428,17 @@ void HomePage::gotData(const QVariantMap &data)
                 mTotalPbkLastYearHash[seksi2][bulan] += nominal;
         }
         else {
-            if (mKantorList.contains(mEngine->wajibPajakHash()[npwp + kpp + cabang].admin()))
+            if (mKantorList.contains(mEngine->data()->wajibPajakHash()[npwp + kpp + cabang].admin))
                 mTotalPbkLastYearHash[seksi][bulan] -= nominal;
 
-            if (mKantorList.contains(mEngine->wajibPajakHash()[npwp2 + kpp2 + cabang2].admin()))
+            if (mKantorList.contains(mEngine->data()->wajibPajakHash()[npwp2 + kpp2 + cabang2].admin))
                 mTotalPbkLastYearHash[seksi2][bulan] += nominal;
         }
     }
         break;
     case HomeFunction::DataPbkCurrentYear:
     {
-        if (mEngine->serverSetting("hitung.pbk").toBool()) {
+        if (mEngine->settings()->value("hitung.pbk").toBool()) {
             if (mKantorList.contains(kpp))
                 mTotalPbkCurrentYearHash[seksi][bulan] -= nominal;
 
@@ -425,16 +446,22 @@ void HomePage::gotData(const QVariantMap &data)
                 mTotalPbkCurrentYearHash[seksi2][bulan] += nominal;
         }
         else {
-            if (mKantorList.contains(mEngine->wajibPajakHash()[npwp + kpp + cabang].admin()))
+            if (mKantorList.contains(mEngine->data()->wajibPajakHash()[npwp + kpp + cabang].admin))
                 mTotalPbkCurrentYearHash[seksi][bulan] -= nominal;
 
-            if (mKantorList.contains(mEngine->wajibPajakHash()[npwp2 + kpp2 + cabang2].admin()))
+            if (mKantorList.contains(mEngine->data()->wajibPajakHash()[npwp2 + kpp2 + cabang2].admin))
                 mTotalPbkCurrentYearHash[seksi2][bulan] += nominal;
         }
     }
         break;
     case HomeFunction::DataRenpenCurrentYear:
         mTotalRenpenCurrentYearHash[seksi][bulan] += nominal;
+        break;
+    case HomeFunction::DataLastMpnDate:
+        mLastMpnDate = data["value"].toString();
+        break;
+    case HomeFunction::DataLastSpmDate:
+        mLastSpmDate = data["value"].toString();
         break;
     default:
         break;
@@ -454,7 +481,7 @@ void HomePage::updateResult()
     QList<int> seksiIdList;
     seksiIdList << 0;
 
-    if (mKantor.isKanwil())
+    if (mKantor.type == Kanwil)
     {
         mTabWidget->setTabEnabled(1, false);
     }
@@ -472,34 +499,38 @@ void HomePage::updateResult()
         QVector<QString> bulanLabels;
         for (int bulan=1; bulan <= 12; bulan++) {
             bulanTicks << bulan;
-            bulanLabels << Common::toNamaBulan(bulan);
+            bulanLabels << mEngine->common()->namaBulan(bulan);
         }
 
         int seksiPageHeight(0);
         QVBoxLayout *seksiLayout = new QVBoxLayout;
-        seksiLayout->setMargin(0);
+        seksiLayout->setContentsMargins(0, 0, 0, 0);
 
         QList<int> tipeSeksiList;
-        if (year >= 2015)
-            tipeSeksiList << SeksiPengawasanDanKonsultasiPengawasan << SeksiEkstensifikasiPerpajakan;
-        else
-            tipeSeksiList << SeksiPengawasanDanKonsultasiPelayanan << SeksiPengawasanDanKonsultasiPengawasan;
+        tipeSeksiList << SeksiPengawasanDanKonsultasiPelayanan
+                      << SeksiPengawasanDanKonsultasiPengawasan
+                      << SeksiEkstensifikasiPerpajakan;
 
-        QList<Seksi> seksiList = Seksi::getSeksiList(mKantor.kode(), tipeSeksiList);
+        QList<Seksi> seksiList;
+        foreach (const Seksi &s, mEngine->data()->seksiList(mKantor.kode)) {
+            if (tipeSeksiList.contains(s.type))
+                seksiList << s;
+        }
         seksiPageHeight += 400 * seksiList.count();
 
         foreach (const Seksi &seksi, seksiList)
         {
-            seksiIdList << seksi.id();
+            seksiIdList << seksi.id;
 
             PenerimaanDialer *dialer = new PenerimaanDialer;
             dialer->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
-            dialer->setTitle(QString("Penerimaan Seksi\n%1").arg(seksi.nama()));
+            dialer->setTitle(QString("Penerimaan Seksi\n%1").arg(seksi.nama));
 
-            mDialerSeksiHash[seksi.id()] = dialer;
+            mDialerSeksiHash[seksi.id] = dialer;
 
             CustomChartView *chartView1 = new CustomChartView;
             chartView1->setBackgroundBrush(QBrush(Qt::white));
+            chartView1->setMinimumSize(400, 300);
 
             {
                 QLineSeries *renpenSeries = new QLineSeries;
@@ -512,7 +543,7 @@ void HomePage::updateResult()
 
                 QCategoryAxis *axisX = new QCategoryAxis;
                 for (int bulan=1; bulan <= 12; bulan++)
-                    axisX->append(Common::toNamaBulan(bulan).left(3), bulan);
+                    axisX->append(mEngine->common()->namaBulan(bulan).left(3), bulan);
                 axisX->setLabelsPosition(QCategoryAxis::AxisLabelsPositionOnValue);
                 axisX->setMin(0);
                 axisX->setMax(13);
@@ -549,17 +580,18 @@ void HomePage::updateResult()
                 chartView1->setRenderHint(QPainter::Antialiasing);
             }
 
-            mBandingAkumulasiSeksiChartHash[seksi.id()] = chartView1;
+            mBandingAkumulasiSeksiChartHash[seksi.id] = chartView1;
 
             CustomChartView *chartView2 = new CustomChartView;
             chartView2->setBackgroundBrush(QBrush(Qt::white));
+            chartView2->setMinimumSize(400, 300);
 
             {
                 QBarSeries *barSeries = new QBarSeries;
 
                 QBarCategoryAxis *axisX = new QBarCategoryAxis;
                 for (int bulan=1; bulan <= 12; bulan++)
-                    axisX->append(Common::toNamaBulan(bulan).left(3));
+                    axisX->append(mEngine->common()->namaBulan(bulan).left(3));
 
                 QValueAxis *axisY = new QValueAxis;
                 axisY->setTitleText("Rupiah (Milyar)");
@@ -592,13 +624,13 @@ void HomePage::updateResult()
             }
 
             QHBoxLayout *waskonLayout = new QHBoxLayout;
-            waskonLayout->setMargin(0);
+            waskonLayout->setContentsMargins(0, 0, 0, 0);
             waskonLayout->addWidget(chartView1);
             waskonLayout->addWidget(chartView2);
             waskonLayout->addWidget(dialer);
             seksiLayout->addLayout(waskonLayout);
 
-            mBandingBulanSeksiChartHash[seksi.id()] = chartView2;
+            mBandingBulanSeksiChartHash[seksi.id] = chartView2;
         }
 
         QWidget *seksiWidget = new QWidget;
@@ -613,6 +645,7 @@ void HomePage::updateResult()
         scrollArea->setWidget(seksiWidget);
 
         mSeksiStackedWidget->addWidget(scrollArea);
+        mSeksiStackedWidget->setCurrentWidget(scrollArea);
     }
 
     foreach (int seksi, seksiIdList)
@@ -1043,7 +1076,7 @@ void HomePage::updateResult()
         {
             QString namaSeksi;
             if (seksi != 0)
-                namaSeksi = Seksi::getSeksi(seksi, mKantor.kode()).nama();
+                namaSeksi = mEngine->data()->seksi(mKantor.kode, seksi).nama;
 
             {
                 QBrush headerBackground(QColor(0, 128, 255, 50));
@@ -1124,7 +1157,7 @@ void HomePage::updateResult()
                         else
                             tumbuh = selisih / qFabs(selisih);
 
-                        QStandardItem *bulanItem = new QStandardItem(Common::toNamaBulan(b));
+                        QStandardItem *bulanItem = new QStandardItem(mEngine->common()->namaBulan(b));
                         bulanItem->setBackground(contentBackground);
                         model->setItem(angkaRow, 1, bulanItem);
 
@@ -1235,7 +1268,7 @@ void HomePage::updateResult()
                         else
                             tumbuh = selisih / qFabs(selisih);
 
-                        QStandardItem *bulanItem = new QStandardItem(Common::toNamaBulan(b));
+                        QStandardItem *bulanItem = new QStandardItem(mEngine->common()->namaBulan(b));
                         bulanItem->setBackground(contentBackground);
                         model->setItem(angkaRow, 1, bulanItem);
 
@@ -1303,18 +1336,17 @@ void HomePage::updateResult()
     mResultView->setColumnWidth(6, 100);
     mResultView->setColumnWidth(7, 100);
 
-    MpnInfoEngine *engine = static_cast<MpnInfoEngine *>(mEngine);
-    mLastMpnLabel->setText(QString("Data MPN: ") + engine->lastMpn().toString("dd-MM-yyyy"));
-    mLastSpmLabel->setText(QString("Data SPM: ") + engine->lastSpm().toString("dd-MM-yyyy"));
+    mLastMpnLabel->setText(QString("Data MPN: ") + (mLastMpnDate.isEmpty() ? "-" : mLastMpnDate));
+    mLastSpmLabel->setText(QString("Data SPM: ") + (mLastSpmDate.isEmpty() ? "-" : mLastSpmDate));
 
-    QString version = QString("MPN-Info v%1").arg(IDD_PACKAGE_VERSION);
+    QString version = QString("MPN-Info v%1").arg(mEngine->version());
     mVersionLabel->setText(version);
 
     mKantorComboBox->setEnabled(true);
     mYearComboBox->setEnabled(true);
 
     {
-        QString kodeKantor = mEngine->serverSetting(IDS_SERVER_KANTOR_KODE).toString();
+        QString kodeKantor = mEngine->databaseSettings()->value("kantor.kode").toString();
         int currentYear = QDate::currentDate().year();
         if (markCapai >= 100
                 && markRenpen > 0
