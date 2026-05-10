@@ -1,23 +1,23 @@
-#ifndef EXAMPLEADDON_H
-#define EXAMPLEADDON_H
+#ifndef HOMEADDON_H
+#define HOMEADDON_H
 
 #include <coreengine.h>
 #include <interface.h>
 
 #include "src/homepage.h"
 
-class ExamplePageAddOn : public AddOn
+class HomeAddOn : public AddOn
 {
 public:
     QString name() { return "home_page"; }
-    QString group() { return "Monitoring"; }
-    QString title() { return "Home"; }
+    QString group() { return "Home"; }
+    QString title() { return "Dashboard"; }
     AddOnTypes type() { return AddOnPage; }
-    int loadFlags() { return AddOnLoadCreateMenu | AddOnLoadExecAfterLogin; }
-    int permission() { return 0; }
-    Object *newObject() { return nullptr; }
-    Page *newPage() { return new HomePage(engine); }
-    Process *newProcess() { return nullptr; }
+    int loadFlags() { return AddOnCreateMenu | AddOnExecAfterLogin; }
+    int permission() { return AddOnAdministrators | AddOnUsers; }
+    ObjectPtr newObject() { return nullptr; }
+    PagePtr newPage() { return PagePtr(new HomePage(engine)); }
+    ProcessPtr newProcess() { return nullptr; }
 };
 
-#endif // EXAMPLEADDON_H
+#endif // HOMEADDON_H

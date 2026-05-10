@@ -5,6 +5,7 @@
 #include <QtPlugin>
 
 #include "interface.h"
+#include "addons.h"
 
 class Plugin : public QObject, Interface
 {
@@ -15,10 +16,14 @@ class Plugin : public QObject, Interface
 public:
     QString author() { return "Ichdyan Thalasa"; }
     QString authorEmail() { return "ichdyan.thalasa@gmail.com"; }
-    QString group() { return "Monitoring"; }
+    QString group() { return "Home"; }
     QString version() { return "0.0.1"; }
-    QString description() { return "Monitoring Penerimaan Kantor"; }
-    QList<AddOnPtr> addOns() { return QList<AddOnPtr>(); }
+    QString description() { return "Dashboard Penerimaan Kantor"; }
+    QList<AddOnPtr> addOns() {
+        QList<AddOnPtr> list;
+        list << AddOnPtr(new HomeAddOn);
+        return list;
+    }
 };
 
 #endif

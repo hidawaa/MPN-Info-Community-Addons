@@ -8,11 +8,18 @@ HEADERS         = \
     addons.h \
     src/dialer.h \
     src/homepage.h \
-    src/homepage_p.h
+    src/homepage_p.h \
+    src/customchartview.h \
+    src/chartcalloutitem.h \
+    src/penerimaandialer.h \
+    src/standarditemdelegate.h
 SOURCES         = \
     src/dialer.cpp \
     src/homepage.cpp \
-    src/homepage_t.cpp
+    src/customchartview.cpp \
+    src/chartcalloutitem.cpp \
+    src/penerimaandialer.cpp \
+    src/standarditemdelegate.cpp
 DESTDIR         = $$OUT_PWD/../../build/addons
 #! [0]
 

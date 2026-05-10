@@ -3,14 +3,9 @@
 
 #include <QChartView>
 
-QT_CHARTS_BEGIN_NAMESPACE
 class QChart;
 class QBarSet;
-QT_CHARTS_END_NAMESPACE
-
 class ChartCalloutItem;
-
-QT_CHARTS_USE_NAMESPACE
 
 class CustomChartView : public QChartView
 {

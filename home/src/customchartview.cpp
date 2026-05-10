@@ -5,7 +5,7 @@
 #include <QBarSeries>
 #include <QBarSet>
 
-#include "ui/chartcalloutitem.h"
+#include "chartcalloutitem.h"
 
 CustomChartView::CustomChartView(QWidget *parent) :
     QChartView(parent),

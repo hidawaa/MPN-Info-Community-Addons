@@ -4,7 +4,7 @@
 #include <QGridLayout>
 #include <QSpacerItem>
 
-#include "ui/dialer.h"
+#include "dialer.h"
 
 PenerimaanDialer::PenerimaanDialer(QWidget *parent) :
     QWidget(parent),
@@ -35,7 +35,7 @@ PenerimaanDialer::PenerimaanDialer(QWidget *parent) :
     mTitleLabel->setMinimumWidth(250);
 
     QGridLayout *penerimaanLayout = new QGridLayout;
-    penerimaanLayout->setMargin(0);
+    penerimaanLayout->setContentsMargins(0, 0, 0, 0);
     penerimaanLayout->addWidget(new QLabel("Total Penerimaan"), 0, 0);
     penerimaanLayout->addWidget(mTotalPenerimaanLabel, 0, 1, Qt::AlignRight);
     penerimaanLayout->addWidget(new QLabel("Total SPMKP dan SPMPP"), 1, 0);
